@@ -1,0 +1,1082 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Montoc - AI Listening & Brand Intelligence Dashboard</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        navy: {
+                            900: '#0b1329',
+                            800: '#111c38',
+                            700: '#1a274c',
+                            600: '#233463'
+                        },
+                        neon: {
+                            cyan: '#00f0ff',
+                            magenta: '#ff007f',
+                            yellow: '#ffee00',
+                            blue: '#3b82f6',
+                            green: '#10b981',
+                            purple: '#a855f7'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            background-color: #0b1329;
+            color: #f3f4f6;
+            font-family: 'Inter', sans-serif;
+            overflow-x: hidden;
+        }
+        .glow-cyan {
+            box-shadow: 0 0 15px rgba(0, 240, 255, 0.25);
+        }
+        .glow-magenta {
+            box-shadow: 0 0 15px rgba(255, 0, 127, 0.25);
+        }
+        .glass-card {
+            background: rgba(17, 28, 56, 0.75);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .glass-card:hover {
+            border-color: rgba(0, 240, 255, 0.3);
+        }
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0b1329;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #1a274c;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #00f0ff;
+        }
+        .word-cloud-item {
+            transition: all 0.3s ease;
+            cursor: pointer;
+            display: inline-block;
+        }
+        .word-cloud-item:hover {
+            transform: scale(1.15) translateY(-2px);
+            filter: drop-shadow(0 0 8px currentColor);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col antialiased selection:bg-neon-cyan selection:text-navy-900">
+
+    <!-- Top Navigation Bar -->
+    <header class="sticky top-0 z-50 glass-card border-b border-gray-800/80 px-4 lg:px-8 py-3">
+        <div class="flex flex-col md:flex-row items-center justify-between gap-4">
+            <!-- Brand & Live Indicator -->
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-neon-cyan via-neon-blue to-neon-magenta p-0.5 flex items-center justify-center shadow-lg">
+                    <div class="w-full h-full bg-navy-900 rounded-[10px] flex items-center justify-center">
+                        <span class="font-extrabold text-xl text-transparent bg-clip-text bg-gradient-to-r from-neon-cyan to-neon-magenta">M</span>
+                    </div>
+                </div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <h1 class="font-black text-2xl tracking-wider text-white">MONTOC</h1>
+                        <span class="text-xs px-2 py-0.5 rounded-full bg-neon-cyan/10 text-neon-cyan border border-neon-cyan/30 font-semibold tracking-wide">AI Listening v3.4</span>
+                    </div>
+                    <p class="text-xs text-gray-400">Plataforma de Extracción de Conversaciones & Inteligencia de Marca</p>
+                </div>
+            </div>
+
+            <!-- Global Search & Filters -->
+            <div class="flex flex-wrap items-center gap-3 w-full md:w-auto">
+                <!-- Search bar -->
+                <div class="relative flex-1 sm:w-64">
+                    <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
+                    <input type="text" id="globalSearch" placeholder="Buscar temas, palabras clave o marcas..." 
+                           class="w-full bg-navy-800 text-xs text-white pl-9 pr-3 py-2 rounded-lg border border-gray-700/60 focus:border-neon-cyan focus:outline-none transition-all">
+                </div>
+
+                <!-- Date Range Selector -->
+                <div class="flex items-center gap-2 bg-navy-800 border border-gray-700/60 rounded-lg px-3 py-1.5 text-xs">
+                    <i class="fa-regular fa-calendar text-neon-cyan"></i>
+                    <select id="dateFilter" class="bg-transparent text-gray-200 focus:outline-none cursor-pointer">
+                        <option value="today" class="bg-navy-900">Hoy (25 Oct, 2026)</option>
+                        <option value="7d" class="bg-navy-900" selected>Últimos 7 días</option>
+                        <option value="30d" class="bg-navy-900">Últimos 30 días</option>
+                        <option value="quarter" class="bg-navy-900">Este Trimestre</option>
+                    </select>
+                </div>
+
+                <!-- Realtime Update Badge -->
+                <div class="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/30 px-3 py-1.5 rounded-lg text-xs text-emerald-400 font-medium">
+                    <span class="relative flex h-2 w-2">
+                      <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                      <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                    </span>
+                    <span>Actualizado Hoy</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Workspace -->
+    <main class="flex-1 max-w-7xl w-full mx-auto p-4 lg:p-6 space-y-6">
+
+        <!-- SECTION 1: Autonomous Web AI Agent / ERL Panel -->
+        <section class="glass-card rounded-2xl p-5 border border-neon-cyan/20 relative overflow-hidden">
+            <div class="absolute -right-16 -top-16 w-40 h-40 bg-neon-cyan/10 rounded-full blur-3xl pointer-events-none"></div>
+            
+            <div class="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 mb-4 pb-3 border-b border-gray-800">
+                <div>
+                    <div class="flex items-center gap-2">
+                        <i class="fa-solid fa-robot text-neon-cyan text-lg"></i>
+                        <h2 class="text-lg font-bold text-white tracking-wide">Agente Web IA Autónomo (ERL Extractor)</h2>
+                    </div>
+                    <p class="text-xs text-gray-400 mt-1">Escaneo dinámico en tiempo real de redes, ecommerce y foros web para extraer conversaciones de Montoc.</p>
+                </div>
+
+                <!-- Agent Controls -->
+                <div class="flex items-center gap-3">
+                    <button id="quickTwoChannelsBtn" onclick="toggleOnlyTwoChannels()" class="text-xs px-3 py-2 rounded-lg bg-navy-700 hover:bg-navy-600 text-neon-yellow border border-neon-yellow/30 font-medium transition flex items-center gap-1.5">
+                        <i class="fa-solid fa-filter"></i>
+                        <span>Solo 2 Canales Top (Instagram + TikTok)</span>
+                    </button>
+
+                    <button id="runAgentBtn" onclick="triggerAIExtraction()" class="text-xs px-4 py-2 rounded-lg bg-gradient-to-r from-neon-cyan to-neon-blue hover:opacity-90 text-navy-900 font-extrabold transition shadow-lg shadow-neon-cyan/20 flex items-center gap-2">
+                        <i class="fa-solid fa-bolt"></i>
+                        <span>Ejecutar Extracción IA</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Dynamic Channel Selector -->
+            <div class="space-y-2 mb-4">
+                <div class="flex justify-between items-center text-xs">
+                    <span class="text-gray-300 font-medium">Canales y Plataformas Web Monitoreadas:</span>
+                    <span class="text-gray-400" id="activeChannelsCount">6 Activos de 6</span>
+                </div>
+
+                <div id="channelChipsContainer" class="flex flex-wrap gap-2">
+                    <!-- Dynamic Channels generated via JS -->
+                </div>
+            </div>
+
+            <!-- Real-time Agent Log Terminal / Feed -->
+            <div class="bg-navy-900/90 rounded-xl border border-gray-800 p-3 font-mono text-xs">
+                <div class="flex items-center justify-between pb-2 border-b border-gray-800 text-gray-400 mb-2">
+                    <div class="flex items-center gap-2">
+                        <span class="w-2.5 h-2.5 rounded-full bg-red-500"></span>
+                        <span class="w-2.5 h-2.5 rounded-full bg-yellow-500"></span>
+                        <span class="w-2.5 h-2.5 rounded-full bg-green-500"></span>
+                        <span class="text-[11px] ml-2 text-gray-300 font-sans">Feed de Rastreo en Vivo (Extracción Reciente)</span>
+                    </div>
+                    <span id="agentStatusText" class="text-neon-cyan font-sans text-[11px]">En espera de comando...</span>
+                </div>
+
+                <div id="liveStreamFeed" class="space-y-2 max-h-40 overflow-y-auto pr-1">
+                    <!-- Dynamically appended extraction comments -->
+                </div>
+            </div>
+        </section>
+
+        <!-- SECTION 2: Sentiment Impact & Word Cloud -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <!-- Sentiment Impact Chart (7 Cols) -->
+            <div class="lg:col-span-7 glass-card rounded-2xl p-5 flex flex-col justify-between">
+                <div class="flex items-center justify-between mb-3">
+                    <div>
+                        <h3 class="font-bold text-white text-sm flex items-center gap-2">
+                            <i class="fa-solid fa-chart-bar text-neon-cyan"></i>
+                            Análisis de Impacto: Comentarios y Reseñas
+                        </h3>
+                        <p class="text-xs text-gray-400">Distribución de Reseñas Positivas vs Negativas por plataforma</p>
+                    </div>
+                    <div class="flex items-center gap-3 text-xs">
+                        <div class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-neon-cyan inline-block"></span> Positivos</div>
+                        <div class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-neon-magenta inline-block"></span> Negativos</div>
+                    </div>
+                </div>
+                <div class="relative h-64 w-full">
+                    <canvas id="impactChart"></canvas>
+                </div>
+                <div class="mt-3 pt-2 border-t border-gray-800 text-xs text-gray-400 flex justify-between items-center">
+                    <span><i class="fa-regular fa-clock text-neon-cyan mr-1"></i> Rango: 18 Oct - 25 Oct, 2026</span>
+                    <span class="text-neon-cyan font-semibold">Total muestras: 2,480 interacciones</span>
+                </div>
+            </div>
+
+            <!-- Sentiment Word Cloud (5 Cols) -->
+            <div class="lg:col-span-5 glass-card rounded-2xl p-5 flex flex-col justify-between">
+                <div>
+                    <h3 class="font-bold text-white text-sm mb-1 flex items-center gap-2">
+                        <i class="fa-solid fa-cloud text-neon-magenta"></i>
+                        Nube de Palabras Clave
+                    </h3>
+                    <p class="text-xs text-gray-400 mb-4">Clasificación semántica por tono y relevancia de conversación</p>
+
+                    <!-- Positive Keywords Container -->
+                    <div class="mb-4 bg-navy-800/50 p-3 rounded-xl border border-emerald-500/20">
+                        <div class="text-[11px] font-bold text-emerald-400 uppercase tracking-wider mb-2 flex items-center gap-1">
+                            <i class="fa-solid fa-thumbs-up"></i> Aspectos Positivos
+                        </div>
+                        <div class="flex flex-wrap gap-2 text-xs" id="positiveWords">
+                            <span class="word-cloud-item px-2.5 py-1 rounded-md bg-emerald-500/10 text-emerald-300 font-bold text-base border border-emerald-500/30">#PigmentaciónAlta</span>
+                            <span class="word-cloud-item px-2 py-1 rounded-md bg-emerald-500/10 text-emerald-400 font-semibold text-sm">#Durabilidad</span>
+                            <span class="word-cloud-item px-2 py-1 rounded-md bg-emerald-500/10 text-cyan-300 font-medium text-xs">#AromaAgradable</span>
+                            <span class="word-cloud-item px-2.5 py-1 rounded-md bg-emerald-500/10 text-emerald-300 font-extrabold text-lg border border-emerald-500/40">#CrueltyFree</span>
+                            <span class="word-cloud-item px-2 py-1 rounded-md bg-emerald-500/10 text-emerald-400 text-sm">#EmpaquePremium</span>
+                            <span class="word-cloud-item px-2 py-1 rounded-md bg-emerald-500/10 text-emerald-300 text-xs">#RelacionPrecioCalidad</span>
+                        </div>
+                    </div>
+
+                    <!-- Negative Keywords Container -->
+                    <div class="bg-navy-800/50 p-3 rounded-xl border border-neon-magenta/20">
+                        <div class="text-[11px] font-bold text-neon-magenta uppercase tracking-wider mb-2 flex items-center gap-1">
+                            <i class="fa-solid fa-thumbs-down"></i> Aspectos Negativos / A Mejorar
+                        </div>
+                        <div class="flex flex-wrap gap-2 text-xs" id="negativeWords">
+                            <span class="word-cloud-item px-2.5 py-1 rounded-md bg-neon-magenta/10 text-neon-magenta font-bold text-base border border-neon-magenta/30">#StockAgotado</span>
+                            <span class="word-cloud-item px-2 py-1 rounded-md bg-neon-magenta/10 text-pink-300 text-sm">#TiemposDeEnvio</span>
+                            <span class="word-cloud-item px-2.5 py-1 rounded-md bg-neon-magenta/10 text-rose-300 font-extrabold text-lg border border-neon-magenta/40">#FaltaPromociones</span>
+                            <span class="word-cloud-item px-2 py-1 rounded-md bg-neon-magenta/10 text-pink-400 text-xs">#SelloSeguridad</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SECTION 3: Product Line Performance Chart & Interactive Tooltip Modal Trigger -->
+        <section class="glass-card rounded-2xl p-5">
+            <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 mb-4">
+                <div>
+                    <h3 class="font-bold text-white text-base flex items-center gap-2">
+                        <i class="fa-solid fa-chart-line text-neon-yellow"></i>
+                        Evolución Temporal de Productos Montoc
+                    </h3>
+                    <p class="text-xs text-gray-400">Rastreo de menciones e impacto por línea. Haz clic en los puntos del gráfico o en las tarjetas para ver la ficha detallada.</p>
+                </div>
+                <div class="bg-navy-800 border border-gray-700 px-3 py-1 rounded-lg text-xs text-gray-300">
+                    Interactividad: <span class="text-neon-cyan font-semibold">Haz clic para desplegar Tooltip/Ficha</span>
+                </div>
+            </div>
+
+            <!-- Product Quick Metrics Cards -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4" id="productMetricCards">
+                <!-- Dynamically generated cards -->
+            </div>
+
+            <!-- Line Chart -->
+            <div class="relative h-72 w-full">
+                <canvas id="productLineChart"></canvas>
+            </div>
+        </section>
+
+        <!-- SECTION 4: Strategic Marketing & Competitor / Channel Intelligence -->
+        <section class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            <!-- Investment & Channels Card -->
+            <div class="glass-card rounded-2xl p-5 relative overflow-hidden border-t-2 border-neon-cyan">
+                <div class="flex items-center gap-2 text-neon-cyan font-bold text-sm mb-3">
+                    <i class="fa-solid fa-wallet"></i>
+                    <h4>Inversión y Estrategia Multicanal</h4>
+                </div>
+                <ul class="space-y-2.5 text-xs text-gray-300">
+                    <li class="bg-navy-800/60 p-2.5 rounded-lg border border-gray-800">
+                        <strong class="text-white block mb-0.5">Mix de Inversión Estampado:</strong>
+                        60% Meta Ads (Instagram/FB), 25% TikTok Ads & Influencers, 15% Google Search & SEO.
+                    </li>
+                    <li class="bg-navy-800/60 p-2.5 rounded-lg border border-gray-800">
+                        <strong class="text-white block mb-0.5">Uso de Redes Sociales:</strong>
+                        TikTok orientado a tutoriales de belleza cortos (UGC). Instagram para branding aspiracional y lanzamientos.
+                    </li>
+                    <li class="bg-navy-800/60 p-2.5 rounded-lg border border-gray-800">
+                        <strong class="text-white block mb-0.5">Mensajes Clave Transmitidos:</strong>
+                        "Maquillaje profesional al alcance de todos", "Alta fijación", "Ingredientes dermatológicamente seguros".
+                    </li>
+                </ul>
+            </div>
+
+            <!-- Target Audience & Events Card -->
+            <div class="glass-card rounded-2xl p-5 relative overflow-hidden border-t-2 border-neon-magenta">
+                <div class="flex items-center gap-2 text-neon-magenta font-bold text-sm mb-3">
+                    <i class="fa-solid fa-users"></i>
+                    <h4>Público Objetivo & Eventos</h4>
+                </div>
+                <ul class="space-y-2.5 text-xs text-gray-300">
+                    <li class="bg-navy-800/60 p-2.5 rounded-lg border border-gray-800">
+                        <strong class="text-white block mb-0.5">Perfil del Consumidor:</strong>
+                        Mujeres y entusiastas del maquillaje (18 a 35 años). Buscan tendencia, practicidad y excelente durabilidad.
+                    </li>
+                    <li class="bg-navy-800/60 p-2.5 rounded-lg border border-gray-800">
+                        <strong class="text-white block mb-0.5">Ferias & Eventos Clave Asistidos:</strong>
+                        Feria Belleza y Salud (Corferias Bogotá), ExpoBeauty Medellín, Masterclasses con Makeup Artists reconocidos.
+                    </li>
+                    <li class="bg-navy-800/60 p-2.5 rounded-lg border border-gray-800">
+                        <strong class="text-white block mb-0.5">Estrategia de Activación:</strong>
+                        Stand interactivo con espejos LED, estaciones de prueba de producto y regalos inmediatos por publicaciones en TikTok.
+                    </li>
+                </ul>
+            </div>
+
+            <!-- SEO & Sources Citation Card -->
+            <div class="glass-card rounded-2xl p-5 relative overflow-hidden border-t-2 border-neon-yellow md:col-span-2 lg:col-span-1">
+                <div class="flex items-center gap-2 text-neon-yellow font-bold text-sm mb-3">
+                    <i class="fa-solid fa-map-location-dot"></i>
+                    <h4>Ubicaciones SEO & Fuentes Reales</h4>
+                </div>
+                <div class="space-y-2.5 text-xs text-gray-300">
+                    <div class="bg-navy-800/60 p-2.5 rounded-lg border border-gray-800">
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="font-bold text-white">Google Maps / Tiendas Físicas</span>
+                            <span class="text-neon-yellow font-semibold"><i class="fa-solid fa-star"></i> 4.8/5</span>
+                        </div>
+                        <p class="text-gray-400 text-[11px]">Reseñas destacadas en SEO local: "Atención impecable en tienda física", "Pude probar todos los tonos de bases".</p>
+                    </div>
+
+                    <div class="bg-navy-800/60 p-2.5 rounded-lg border border-gray-800">
+                        <strong class="text-white block mb-1">Fuentes Monitoreadas con Fecha:</strong>
+                        <div class="space-y-1 text-[11px] text-gray-400">
+                            <div class="flex justify-between">
+                                <span>• Google Business Listing</span>
+                                <span class="text-gray-500">25 Oct, 2026</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span>• MercadoLibre Official Store</span>
+                                <span class="text-gray-500">24 Oct, 2026</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span>• Comments TikTok Official</span>
+                                <span class="text-gray-500">25 Oct, 2026</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SECTION 5: Neuromarketing Protocol -->
+        <section class="glass-card rounded-2xl p-5">
+            <div class="mb-4">
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-brain text-neon-purple text-xl"></i>
+                    <h3 class="font-bold text-white text-base">Protocolo de Neuromarketing Montoc</h3>
+                </div>
+                <p class="text-xs text-gray-400">Evaluación del impacto neuropsicológico de la marca en 3 dimensiones fundamentales.</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <!-- Cognitive Dimension -->
+                <div class="bg-navy-800/80 rounded-xl p-4 border border-neon-cyan/30 flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="font-bold text-neon-cyan text-sm flex items-center gap-1.5">
+                                <i class="fa-solid fa-lightbulb"></i> Aspecto Cognitivo
+                            </span>
+                            <span class="bg-neon-cyan/10 text-neon-cyan px-2 py-0.5 rounded text-xs font-bold border border-neon-cyan/30">88% Índice</span>
+                        </div>
+                        <p class="text-xs text-gray-300 mb-3">Atención, retención de marca y facilidad de comprensión de los beneficios del producto.</p>
+                        <ul class="text-xs text-gray-400 space-y-1">
+                            <li>• Alto reconocimiento de empaque distintivo.</li>
+                            <li>• Claridad en mensajes de uso del producto.</li>
+                        </ul>
+                    </div>
+                    <div class="mt-3 pt-2 border-t border-gray-700/50 flex items-center justify-between text-[11px] text-gray-400">
+                        <span>Facilidad de Recordación:</span>
+                        <span class="text-white font-bold">Muy Alta</span>
+                    </div>
+                </div>
+
+                <!-- Sensorial Dimension -->
+                <div class="bg-navy-800/80 rounded-xl p-4 border border-neon-magenta/30 flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="font-bold text-neon-magenta text-sm flex items-center gap-1.5">
+                                <i class="fa-solid fa-eye"></i> Aspecto Sensorial
+                            </span>
+                            <span class="bg-neon-magenta/10 text-neon-magenta px-2 py-0.5 rounded text-xs font-bold border border-neon-magenta/30">92% Índice</span>
+                        </div>
+                        <p class="text-xs text-gray-300 mb-3">Percepción táctil, aroma, acabado estético visual y experiencia en piel.</p>
+                        <ul class="text-xs text-gray-400 space-y-1">
+                            <li>• Textura suave en brochas y polvos.</li>
+                            <li>• Atractivo visual alto en empaques mate.</li>
+                        </ul>
+                    </div>
+                    <div class="mt-3 pt-2 border-t border-gray-700/50 flex items-center justify-between text-[11px] text-gray-400">
+                        <span>Aceptación Sensorial:</span>
+                        <span class="text-white font-bold">Excelente</span>
+                    </div>
+                </div>
+
+                <!-- Emotional Dimension -->
+                <div class="bg-navy-800/80 rounded-xl p-4 border border-neon-yellow/30 flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="font-bold text-neon-yellow text-sm flex items-center gap-1.5">
+                                <i class="fa-solid fa-heart"></i> Aspecto Emocional
+                            </span>
+                            <span class="bg-neon-yellow/10 text-neon-yellow px-2 py-0.5 rounded text-xs font-bold border border-neon-yellow/30">85% Índice</span>
+                        </div>
+                        <p class="text-xs text-gray-300 mb-3">Conexión afectiva, sentido de pertenencia a la comunidad y confianza de marca.</p>
+                        <ul class="text-xs text-gray-400 space-y-1">
+                            <li>• Sentimiento de empoderamiento al maquillarse.</li>
+                            <li>• Lealtad por filosofía cruelty-free.</li>
+                        </ul>
+                    </div>
+                    <div class="mt-3 pt-2 border-t border-gray-700/50 flex items-center justify-between text-[11px] text-gray-400">
+                        <span>Vínculo Emocional:</span>
+                        <span class="text-white font-bold">Fuerte</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SECTION 6: Social Media Positioning & Comparative Products -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <!-- Ordered Product Comparative Ranking Chart (8 Cols) -->
+            <div class="lg:col-span-8 glass-card rounded-2xl p-5">
+                <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 mb-4">
+                    <div>
+                        <h3 class="font-bold text-white text-sm flex items-center gap-2">
+                            <i class="fa-solid fa-ranking-star text-neon-cyan"></i>
+                            Posicionamiento de Productos Montoc (De Mayor a Menor)
+                        </h3>
+                        <p class="text-xs text-gray-400">Comparativa con etiqueta numérica superior y código de color llamativo.</p>
+                    </div>
+                    <span class="text-[11px] text-neon-cyan bg-neon-cyan/10 px-2.5 py-1 rounded-md border border-neon-cyan/30">
+                        Efecto Hover / Click para detalles
+                    </span>
+                </div>
+
+                <div class="relative h-72 w-full">
+                    <canvas id="rankingChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Share of Voice Donut Chart (4 Cols) -->
+            <div class="lg:col-span-4 glass-card rounded-2xl p-5 flex flex-col justify-between">
+                <div>
+                    <h3 class="font-bold text-white text-sm mb-1 flex items-center gap-2">
+                        <i class="fa-solid fa-pie-chart text-neon-magenta"></i>
+                        Cuota de Posicionamiento (Redes)
+                    </h3>
+                    <p class="text-xs text-gray-400 mb-3">Distribución del volumen de menciones por plataforma individual.</p>
+                    <div class="relative h-52 w-full flex items-center justify-center">
+                        <canvas id="shareDonutChart"></canvas>
+                    </div>
+                </div>
+                <div id="donutLegend" class="grid grid-cols-2 gap-2 text-[11px] text-gray-300 mt-2 pt-2 border-t border-gray-800">
+                    <!-- Dynamic legend populated by JS -->
+                </div>
+            </div>
+        </div>
+
+        <!-- SECTION 7: Multi-channel Benchmark & DOFA (SWOT) Analysis -->
+        <section class="glass-card rounded-2xl p-5 space-y-6">
+            <div>
+                <div class="flex items-center justify-between flex-wrap gap-2">
+                    <div>
+                        <h3 class="font-bold text-white text-base flex items-center gap-2">
+                            <i class="fa-solid fa-bullseye text-neon-cyan"></i>
+                            Benchmark Multicanal & Análisis DOFA (FODA) para Montoc
+                        </h3>
+                        <p class="text-xs text-gray-400">Evaluación estratégica basada en comentarios reales recolectados por el Agente Web IA.</p>
+                    </div>
+                    <div class="flex items-center gap-2 bg-navy-800 border border-gray-700 px-3 py-1.5 rounded-lg text-xs">
+                        <span class="text-gray-400">Puntuación Global de Marca:</span>
+                        <span class="text-neon-yellow font-extrabold text-sm"><i class="fa-solid fa-star"></i> 4.7 / 5.0</span>
+                        <span class="text-gray-500 text-[10px]">(+1,200 reseñas)</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- DOFA / SWOT Grid Matrix -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- Debilidades (Weaknesses) -->
+                <div class="bg-navy-800/60 rounded-xl p-4 border-l-4 border-red-500">
+                    <div class="flex items-center justify-between mb-2">
+                        <h4 class="font-bold text-red-400 text-sm flex items-center gap-1.5">
+                            <i class="fa-solid fa-triangle-exclamation"></i> DEBILIDADES (D)
+                        </h4>
+                        <span class="text-[10px] bg-red-500/10 text-red-400 px-2 py-0.5 rounded">Interno</span>
+                    </div>
+                    <ul class="text-xs text-gray-300 space-y-2">
+                        <li class="flex items-start gap-1.5">
+                            <i class="fa-solid fa-minus text-red-400 mt-0.5 text-[10px]"></i>
+                            <span>Quiebres de stock frecuentes en tonos de rubores virales en TikTok.</span>
+                        </li>
+                        <li class="flex items-start gap-1.5">
+                            <i class="fa-solid fa-minus text-red-400 mt-0.5 text-[10px]"></i>
+                            <span>Demoras ocasionales en despachos durante fechas de altas promociones.</span>
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- Oportunidades (Opportunities) -->
+                <div class="bg-navy-800/60 rounded-xl p-4 border-l-4 border-neon-cyan">
+                    <div class="flex items-center justify-between mb-2">
+                        <h4 class="font-bold text-neon-cyan text-sm flex items-center gap-1.5">
+                            <i class="fa-solid fa-lightbulb"></i> OPORTUNIDADES (O)
+                        </h4>
+                        <span class="text-[10px] bg-neon-cyan/10 text-neon-cyan px-2 py-0.5 rounded">Externo</span>
+                    </div>
+                    <ul class="text-xs text-gray-300 space-y-2">
+                        <li class="flex items-start gap-1.5">
+                            <i class="fa-solid fa-plus text-neon-cyan mt-0.5 text-[10px]"></i>
+                            <span>Expandir línea de cuidado facial hidratante pre-maquillaje (Skincare-Makeup hybrid).</span>
+                        </li>
+                        <li class="flex items-start gap-1.5">
+                            <i class="fa-solid fa-plus text-neon-cyan mt-0.5 text-[10px]"></i>
+                            <span>Fortalecer envíos internacionales directos en Latinoamérica.</span>
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- Fortalezas (Strengths) -->
+                <div class="bg-navy-800/60 rounded-xl p-4 border-l-4 border-emerald-500">
+                    <div class="flex items-center justify-between mb-2">
+                        <h4 class="font-bold text-emerald-400 text-sm flex items-center gap-1.5">
+                            <i class="fa-solid fa-shield-halved"></i> FORTALEZAS (F)
+                        </h4>
+                        <span class="text-[10px] bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded">Interno</span>
+                    </div>
+                    <ul class="text-xs text-gray-300 space-y-2">
+                        <li class="flex items-start gap-1.5">
+                            <i class="fa-solid fa-check text-emerald-400 mt-0.5 text-[10px]"></i>
+                            <span>Excelente relación calidad-precio altamente valorada en reseñas.</span>
+                        </li>
+                        <li class="flex items-start gap-1.5">
+                            <i class="fa-solid fa-check text-emerald-400 mt-0.5 text-[10px]"></i>
+                            <span>Comunidad leal y orgánica que genera constante contenido UGC en TikTok e Instagram.</span>
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- Amenazas (Threats) -->
+                <div class="bg-navy-800/60 rounded-xl p-4 border-l-4 border-neon-yellow">
+                    <div class="flex items-center justify-between mb-2">
+                        <h4 class="font-bold text-neon-yellow text-sm flex items-center gap-1.5">
+                            <i class="fa-solid fa-bug"></i> AMENAZAS (A)
+                        </h4>
+                        <span class="text-[10px] bg-neon-yellow/10 text-neon-yellow px-2 py-0.5 rounded">Externo</span>
+                    </div>
+                    <ul class="text-xs text-gray-300 space-y-2">
+                        <li class="flex items-start gap-1.5">
+                            <i class="fa-solid fa-triangle-exclamation text-neon-yellow mt-0.5 text-[10px]"></i>
+                            <span>Ingreso agresivo de marcas importadas low-cost en marketplaces.</span>
+                        </li>
+                        <li class="flex items-start gap-1.5">
+                            <i class="fa-solid fa-triangle-exclamation text-neon-yellow mt-0.5 text-[10px]"></i>
+                            <span>Aumento de costos en materias primas internacionales.</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Actionable Improvement Points for Montoc -->
+            <div class="bg-gradient-to-r from-navy-800 to-navy-700 p-4 rounded-xl border border-gray-700">
+                <h4 class="font-bold text-white text-sm mb-2 flex items-center gap-2">
+                    <i class="fa-solid fa-rocket text-neon-cyan"></i>
+                    Puntos Clave de Mejora Recomendados para Montoc
+                </h4>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs text-gray-300">
+                    <div class="bg-navy-900/60 p-3 rounded-lg border border-gray-800">
+                        <strong class="text-neon-cyan block mb-1">1. Optimización de Inventario</strong>
+                        Implementar alertas tempranas de restock automatizadas para evitar desabastecimiento de productos estrella.
+                    </div>
+                    <div class="bg-navy-900/60 p-3 rounded-lg border border-gray-800">
+                        <strong class="text-neon-magenta block mb-1">2. Experiencia de Unboxing</strong>
+                        Reforzar sellos de seguridad en los paquetes para garantizar que lleguen impecables tras el transporte.
+                    </div>
+                    <div class="bg-navy-900/60 p-3 rounded-lg border border-gray-800">
+                        <strong class="text-neon-yellow block mb-1">3. Fidelización Multicanal</strong>
+                        Crear programa de puntos acumulables por reseñas verificadas y fotos publicadas en la web.
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Interactive Product Detail Modal (Triggered by charts or cards) -->
+    <div id="productModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-navy-800 border border-neon-cyan/50 rounded-2xl max-w-md w-full p-6 relative shadow-2xl animate-fade-in">
+            <button onclick="closeProductModal()" class="absolute top-4 right-4 text-gray-400 hover:text-white transition">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+
+            <div class="flex items-center gap-3 mb-4">
+                <div id="modalBadgeIcon" class="w-12 h-12 rounded-xl bg-neon-cyan/10 border border-neon-cyan text-neon-cyan flex items-center justify-center text-xl font-bold">
+                    <i class="fa-solid fa-box-open"></i>
+                </div>
+                <div>
+                    <h3 id="modalProductName" class="text-lg font-bold text-white">Nombre del Producto</h3>
+                    <span id="modalProductCategory" class="text-xs text-neon-cyan font-medium">Línea de Maquillaje Montoc</span>
+                </div>
+            </div>
+
+            <div class="space-y-3 bg-navy-900/70 p-4 rounded-xl border border-gray-800 text-xs text-gray-300 mb-4">
+                <div class="flex justify-between items-center border-b border-gray-800 pb-2">
+                    <span class="text-gray-400">Variable Analizada:</span>
+                    <span id="modalVariable" class="font-bold text-white">Impacto e Interacciones</span>
+                </div>
+                <div class="flex justify-between items-center border-b border-gray-800 pb-2">
+                    <span class="text-gray-400">Porcentaje de Participación:</span>
+                    <span id="modalPercentage" class="font-bold text-neon-cyan text-sm">38.5%</span>
+                </div>
+                <div class="flex justify-between items-center border-b border-gray-800 pb-2">
+                    <span class="text-gray-400">Precio Sugerido / Promedio:</span>
+                    <span id="modalPrice" class="font-bold text-neon-yellow text-sm">$45,000 COP ($11.50 USD)</span>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span class="text-gray-400">Índice de Aceptación Positiva:</span>
+                    <span id="modalSentiment" class="font-bold text-emerald-400">94% Favorabilidad</span>
+                </div>
+            </div>
+
+            <p id="modalDescription" class="text-xs text-gray-400 mb-4">
+                Comentarios frecuentes destacan la alta resistencia del producto al agua y su textura ligera para uso diario.
+            </p>
+
+            <button onclick="closeProductModal()" class="w-full py-2 bg-gradient-to-r from-neon-cyan to-neon-blue text-navy-900 font-bold text-xs rounded-lg hover:opacity-90 transition">
+                Cerrar Detalle
+            </button>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="border-t border-gray-800/80 py-4 text-center text-xs text-gray-500 mt-8">
+        <p>Montoc Brand Intelligence Platform &copy; 2026. Todos los derechos reservados. Sistema de escucha social en vivo.</p>
+    </footer>
+
+    <!-- JavaScript Application Logic -->
+    <script>
+        // Data Structures
+        const channelsData = [
+            { id: 'instagram', name: 'Instagram', icon: 'fa-instagram', color: '#e1306c', active: true },
+            { id: 'tiktok', name: 'TikTok', icon: 'fa-tiktok', color: '#00f0ff', active: true },
+            { id: 'google', name: 'Google Reviews', icon: 'fa-google', color: '#ffee00', active: true },
+            { id: 'mercadolibre', name: 'MercadoLibre', icon: 'fa-bag-shopping', color: '#ffe600', active: true },
+            { id: 'youtube', name: 'YouTube', icon: 'fa-youtube', color: '#ff0000', active: true },
+            { id: 'facebook', name: 'Facebook', icon: 'fa-facebook', color: '#3b82f6', active: true }
+        ];
+
+        const productsData = [
+            { id: 'p1', name: 'Brochas Premium Set', percentage: '38.5%', price: '$85,000 COP ($21.80 USD)', sentiment: '95% Positivo', variable: 'Menciones Virales & Ventas', mentions: 1240, color: '#00f0ff', desc: 'Set insignia de la marca. Extremadamente popular en recomendaciones de TikTok.' },
+            { id: 'p2', name: 'Rubor Líquido Velvet', percentage: '26.2%', price: '$38,000 COP ($9.70 USD)', sentiment: '91% Positivo', variable: 'Interacción y Engagement', mentions: 890, color: '#ff007f', desc: 'Destacado por su alta pigmentación y acabado natural en pieles mixtas.' },
+            { id: 'p3', name: 'Polvo Traslúcido HD', percentage: '20.1%', price: '$42,000 COP ($10.70 USD)', sentiment: '88% Positivo', variable: 'Consultas y Reseñas', mentions: 650, color: '#ffee00', desc: 'Comentarios resaltan su control de brillo sin efecto flashback en fotografías.' },
+            { id: 'p4', name: 'Fijador de Maquillaje Matte', percentage: '15.2%', price: '$35,000 COP ($8.90 USD)', sentiment: '86% Positivo', variable: 'Reseñas Verificadas', mentions: 490, color: '#a855f7', desc: 'Elogiado por extender la duración del maquillaje en climas cálidos.' }
+        ];
+
+        const sampleComments = [
+            { platform: 'TikTok', user: '@makeup_lover23', text: '¡El rubor líquido de Montoc me duró todo el día en el evento! 💖', date: '25 Oct 2026', type: 'positive' },
+            { platform: 'Instagram', user: '@caro_beauty', text: 'Amo el set de brochas, súper suaves y no pierden pelitos al lavarlas.', date: '25 Oct 2026', type: 'positive' },
+            { platform: 'Google Reviews', user: 'Marcela G.', text: 'Fui al punto físico en Bogotá, excelente atención pero el polvo tono medio estaba agotado.', date: '24 Oct 2026', type: 'negative' },
+            { platform: 'MercadoLibre', user: 'LorenaP_88', text: 'Llegó rapidísimo en 24 horas. Producto 100% original con sello intacto.', date: '24 Oct 2026', type: 'positive' },
+            { platform: 'YouTube', user: 'BeautyReviewCol', text: 'Hice la prueba de agua con el fijador Montoc y superó mis expectativas.', date: '23 Oct 2026', type: 'positive' }
+        ];
+
+        let impactChartInstance = null;
+        let productLineChartInstance = null;
+        let rankingChartInstance = null;
+        let shareDonutChartInstance = null;
+
+        // Initialize App
+        document.addEventListener('DOMContentLoaded', () => {
+            renderChannelChips();
+            renderProductMetricCards();
+            populateStreamFeed();
+            initImpactChart();
+            initProductLineChart();
+            initRankingChart();
+            initShareDonutChart();
+        });
+
+        // Channel Selector Functions
+        function renderChannelChips() {
+            const container = document.getElementById('channelChipsContainer');
+            container.innerHTML = '';
+
+            let activeCount = 0;
+            channelsData.forEach(ch => {
+                if (ch.active) activeCount++;
+                const chip = document.createElement('button');
+                chip.onclick = () => toggleChannel(ch.id);
+                chip.className = `px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-2 border transition-all ${
+                    ch.active 
+                    ? 'bg-navy-800 text-white border-neon-cyan shadow-sm shadow-neon-cyan/20' 
+                    : 'bg-navy-900/50 text-gray-500 border-gray-800 opacity-60'
+                }`;
+                chip.innerHTML = `
+                    <i class="fa-brands ${ch.icon}" style="color: ${ch.active ? ch.color : '#6b7280'}"></i>
+                    <span>${ch.name}</span>
+                    <span class="text-[10px] ml-1 ${ch.active ? 'text-neon-cyan' : 'text-gray-600'}">
+                        ${ch.active ? '<i class="fa-solid fa-check"></i>' : '<i class="fa-solid fa-xmark"></i>'}
+                    </span>
+                `;
+                container.appendChild(chip);
+            });
+
+            document.getElementById('activeChannelsCount').innerText = `${activeCount} Activos de ${channelsData.length}`;
+        }
+
+        function toggleChannel(id) {
+            const ch = channelsData.find(c => c.id === id);
+            if (ch) {
+                ch.active = !ch.active;
+                renderChannelChips();
+                updateChartsData();
+            }
+        }
+
+        function toggleOnlyTwoChannels() {
+            // Keep only Instagram & TikTok active as requested
+            channelsData.forEach(ch => {
+                ch.active = (ch.id === 'instagram' || ch.id === 'tiktok');
+            });
+            renderChannelChips();
+            updateChartsData();
+            
+            const btn = document.getElementById('quickTwoChannelsBtn');
+            btn.classList.add('ring-2', 'ring-neon-yellow');
+            setTimeout(() => btn.classList.remove('ring-2', 'ring-neon-yellow'), 1000);
+        }
+
+        // Live Feed Population
+        function populateStreamFeed() {
+            const container = document.getElementById('liveStreamFeed');
+            container.innerHTML = '';
+
+            sampleComments.forEach(item => {
+                const isPositive = item.type === 'positive';
+                const el = document.createElement('div');
+                el.className = `p-2 rounded bg-navy-800/80 border-l-2 ${isPositive ? 'border-emerald-400' : 'border-neon-magenta'} flex flex-col sm:flex-row justify-between sm:items-center gap-1 text-[11px]`;
+                el.innerHTML = `
+                    <div class="flex items-center gap-2">
+                        <span class="px-1.5 py-0.5 rounded font-bold ${isPositive ? 'bg-emerald-500/10 text-emerald-400' : 'bg-neon-magenta/10 text-neon-magenta'}">${item.platform}</span>
+                        <span class="text-gray-300 font-semibold">${item.user}:</span>
+                        <span class="text-gray-400 font-sans">"${item.text}"</span>
+                    </div>
+                    <span class="text-gray-500 text-[10px] whitespace-nowrap"><i class="fa-regular fa-clock mr-1"></i>${item.date}</span>
+                `;
+                container.appendChild(el);
+            });
+        }
+
+        function triggerAIExtraction() {
+            const statusText = document.getElementById('agentStatusText');
+            const runBtn = document.getElementById('runAgentBtn');
+            
+            statusText.innerText = "⚡ Agente ERL escaneando web y redes...";
+            statusText.className = "text-neon-yellow font-sans text-[11px] animate-pulse";
+            runBtn.disabled = true;
+
+            setTimeout(() => {
+                // Add new simulated live item
+                const newComment = {
+                    platform: 'TikTok',
+                    user: '@beauty_colombia',
+                    text: 'Probando la base de Montoc por 12 horas seguidas. ¡Impresionante fijación!',
+                    date: '25 Oct 2026',
+                    type: 'positive'
+                };
+                sampleComments.unshift(newComment);
+                populateStreamFeed();
+
+                statusText.innerText = "✓ Escaneo completado. Datos actualizados.";
+                statusText.className = "text-emerald-400 font-sans text-[11px]";
+                runBtn.disabled = false;
+            }, 1200);
+        }
+
+        // Render Product Metric Cards
+        function renderProductMetricCards() {
+            const container = document.getElementById('productMetricCards');
+            container.innerHTML = '';
+
+            productsData.forEach(p => {
+                const card = document.createElement('div');
+                card.onclick = () => openProductModal(p);
+                card.className = 'bg-navy-800/80 hover:bg-navy-700/80 p-3 rounded-xl border border-gray-800 hover:border-neon-cyan/50 cursor-pointer transition flex flex-col justify-between';
+                card.innerHTML = `
+                    <div class="flex items-center justify-between mb-1">
+                        <span class="text-[10px] px-1.5 py-0.5 rounded font-bold" style="background-color: ${p.color}20; color: ${p.color}">${p.variable}</span>
+                        <i class="fa-solid fa-arrow-up-right-from-square text-[10px] text-gray-500"></i>
+                    </div>
+                    <h4 class="font-bold text-white text-xs truncate mb-1">${p.name}</h4>
+                    <div class="flex items-baseline justify-between">
+                        <span class="text-neon-cyan font-black text-sm">${p.percentage}</span>
+                        <span class="text-gray-400 text-[10px]">${p.price}</span>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        // Chart Initialization Functions
+        function initImpactChart() {
+            const ctx = document.getElementById('impactChart').getContext('2d');
+            const activeCh = channelsData.filter(c => c.active);
+
+            impactChartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: activeCh.map(c => c.name),
+                    datasets: [
+                        {
+                            label: 'Comentarios Positivos',
+                            data: [420, 680, 290, 310, 180, 210].slice(0, activeCh.length),
+                            backgroundColor: '#00f0ff',
+                            borderRadius: 6
+                        },
+                        {
+                            label: 'Reseñas/Críticas Negativas',
+                            data: [45, 72, 28, 15, 20, 35].slice(0, activeCh.length),
+                            backgroundColor: '#ff007f',
+                            borderRadius: 6
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: '#111c38',
+                            titleColor: '#00f0ff',
+                            bodyColor: '#fff',
+                            borderColor: '#1a274c',
+                            borderWidth: 1
+                        }
+                    },
+                    scales: {
+                        x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#9ca3af', font: { size: 10 } } },
+                        y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#9ca3af', font: { size: 10 } } }
+                    }
+                }
+            });
+        }
+
+        function initProductLineChart() {
+            const ctx = document.getElementById('productLineChart').getContext('2d');
+            
+            productLineChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: ['19 Oct', '20 Oct', '21 Oct', '22 Oct', '23 Oct', '24 Oct', '25 Oct (Hoy)'],
+                    datasets: [
+                        {
+                            label: 'Brochas Premium Set',
+                            data: [120, 150, 180, 220, 210, 280, 310],
+                            borderColor: '#00f0ff',
+                            backgroundColor: 'rgba(0, 240, 255, 0.1)',
+                            tension: 0.4,
+                            fill: true,
+                            pointRadius: 5,
+                            pointHoverRadius: 8
+                        },
+                        {
+                            label: 'Rubor Líquido Velvet',
+                            data: [90, 110, 130, 170, 190, 210, 240],
+                            borderColor: '#ff007f',
+                            backgroundColor: 'transparent',
+                            tension: 0.4,
+                            pointRadius: 4
+                        },
+                        {
+                            label: 'Polvo Traslúcido HD',
+                            data: [70, 85, 90, 110, 125, 140, 160],
+                            borderColor: '#ffee00',
+                            backgroundColor: 'transparent',
+                            tension: 0.4,
+                            pointRadius: 4
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    onClick: (evt, activeEls) => {
+                        if (activeEls.length > 0) {
+                            const datasetIndex = activeEls[0].datasetIndex;
+                            openProductModal(productsData[datasetIndex] || productsData[0]);
+                        }
+                    },
+                    plugins: {
+                        legend: { labels: { color: '#d1d5db', font: { size: 11 } } },
+                        tooltip: {
+                            backgroundColor: '#111c38',
+                            titleColor: '#00f0ff',
+                            bodyColor: '#fff',
+                            borderColor: '#00f0ff',
+                            borderWidth: 1,
+                            callbacks: {
+                                footer: (tooltipItems) => {
+                                    const index = tooltipItems[0].datasetIndex;
+                                    const prod = productsData[index] || productsData[0];
+                                    return `Precio: ${prod.price} | Aceptación: ${prod.sentiment}`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#9ca3af', font: { size: 10 } } },
+                        y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#9ca3af', font: { size: 10 } } }
+                    }
+                }
+            });
+        }
+
+        function initRankingChart() {
+            const ctx = document.getElementById('rankingChart').getContext('2d');
+            
+            // Sorted from highest to lowest
+            const sortedProducts = [...productsData].sort((a,b) => b.mentions - a.mentions);
+
+            rankingChartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: sortedProducts.map(p => p.name),
+                    datasets: [{
+                        label: 'Volumen de Menciones',
+                        data: sortedProducts.map(p => p.mentions),
+                        backgroundColor: sortedProducts.map(p => p.color),
+                        borderRadius: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    onClick: (evt, activeEls) => {
+                        if (activeEls.length > 0) {
+                            const index = activeEls[0].index;
+                            openProductModal(sortedProducts[index]);
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: '#111c38',
+                            callbacks: {
+                                label: (context) => {
+                                    const prod = sortedProducts[context.dataIndex];
+                                    return ` Menciones: ${prod.mentions} (${prod.percentage}) - ${prod.price}`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#fff', font: { weight: 'bold', size: 11 } } },
+                        y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#9ca3af', font: { size: 10 } } }
+                    }
+                }
+            });
+        }
+
+        function initShareDonutChart() {
+            const ctx = document.getElementById('shareDonutChart').getContext('2d');
+            const activeCh = channelsData.filter(c => c.active);
+
+            shareDonutChartInstance = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: activeCh.map(c => c.name),
+                    datasets: [{
+                        data: [35, 30, 15, 10, 6, 4].slice(0, activeCh.length),
+                        backgroundColor: activeCh.map(c => c.color),
+                        borderWidth: 2,
+                        borderColor: '#0b1329'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    cutout: '65%'
+                }
+            });
+
+            // Populate Legend
+            const legendContainer = document.getElementById('donutLegend');
+            legendContainer.innerHTML = '';
+            activeCh.forEach((ch, idx) => {
+                const item = document.createElement('div');
+                item.className = 'flex items-center gap-1.5';
+                item.innerHTML = `
+                    <span class="w-2.5 h-2.5 rounded-full inline-block" style="background-color: ${ch.color}"></span>
+                    <span class="truncate">${ch.name}</span>
+                `;
+                legendContainer.appendChild(item);
+            });
+        }
+
+        function updateChartsData() {
+            const activeCh = channelsData.filter(c => c.active);
+            
+            if (impactChartInstance) {
+                impactChartInstance.data.labels = activeCh.map(c => c.name);
+                impactChartInstance.data.datasets[0].data = [420, 680, 290, 310, 180, 210].slice(0, activeCh.length);
+                impactChartInstance.data.datasets[1].data = [45, 72, 28, 15, 20, 35].slice(0, activeCh.length);
+                impactChartInstance.update();
+            }
+
+            if (shareDonutChartInstance) {
+                shareDonutChartInstance.data.labels = activeCh.map(c => c.name);
+                shareDonutChartInstance.data.datasets[0].data = [35, 30, 15, 10, 6, 4].slice(0, activeCh.length);
+                shareDonutChartInstance.data.datasets[0].backgroundColor = activeCh.map(c => c.color);
+                shareDonutChartInstance.update();
+
+                // Refresh legend
+                const legendContainer = document.getElementById('donutLegend');
+                legendContainer.innerHTML = '';
+                activeCh.forEach(ch => {
+                    const item = document.createElement('div');
+                    item.className = 'flex items-center gap-1.5';
+                    item.innerHTML = `
+                        <span class="w-2.5 h-2.5 rounded-full inline-block" style="background-color: ${ch.color}"></span>
+                        <span class="truncate">${ch.name}</span>
+                    `;
+                    legendContainer.appendChild(item);
+                });
+            }
+        }
+
+        // Modal Handlers
+        function openProductModal(prod) {
+            document.getElementById('modalProductName').innerText = prod.name;
+            document.getElementById('modalVariable').innerText = prod.variable;
+            document.getElementById('modalPercentage').innerText = prod.percentage;
+            document.getElementById('modalPrice').innerText = prod.price;
+            document.getElementById('modalSentiment').innerText = prod.sentiment;
+            document.getElementById('modalDescription').innerText = prod.desc;
+
+            const modal = document.getElementById('productModal');
+            modal.classList.remove('hidden');
+        }
+
+        function closeProductModal() {
+            document.getElementById('productModal').classList.add('hidden');
+        }
+    </script>
+</body>
+</html>
